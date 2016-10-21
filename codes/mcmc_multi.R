@@ -47,9 +47,10 @@ mh.std = function(o_ht,n_ht,x,b0,b1,sd,df,h1,h2,e_nu){
 }
 
 ite = 5e3
+burn_in = 2000
 
 N = 4500
-burn_in = 2000
+
 phi = 0.95
 t_nu = 5
 epi_nu = 5
