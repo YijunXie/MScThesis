@@ -29,4 +29,4 @@ chiplot(smdat,nq = 200)
 par(mfrow = c(1,1))
 
 # calculate chi_bar
-chi.bar(x,q = 0.9995)
+chi.bar(x,q = 0.99,n = 100)

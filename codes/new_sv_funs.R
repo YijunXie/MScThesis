@@ -1,5 +1,5 @@
 chi.bar = function(dat, q = 0.95, n = 1, conf = 0.95){
-  c1 = dat[-c((length(dat)-n+1),length(dat))]
+  c1 = dat[-c((length(dat)-n+1):length(dat))]
   c2 = dat[-c(1:n)]
   temp_dat = cbind(c1,c2)
   z = rowMins(temp_dat)
