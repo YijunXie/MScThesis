@@ -58,7 +58,7 @@ omega = -0.5
 
 registerDoMC(8)
 s = Sys.time()
-results = foreach(i = 1:200,.errorhandling = 'remove',.combine = rbind)%dopar%{
+results = foreach(i = 200:300,.errorhandling = 'remove',.combine = rbind)%dopar%{
   set.seed(i)
   
   # generate simulated datasets
@@ -151,36 +151,44 @@ results = foreach(i = 1:200,.errorhandling = 'remove',.combine = rbind)%dopar%{
   b0 = draws$summary$para[1,1] * (1-b1)
   svg = draws$summary$para[3,1]
   c(median(intmr[,1]),median(intmr[,2]),median(intmr[,3]),
-    median(intmr[,4]),b0,b1,svg)
+    median(intmr[,4]),b0,b1,svg,i)
 }
 
-write.csv(results,'multi_mcmc_nt2.csv')
+write.csv(results,'multi_mcmc_nt3.csv')
 
 Sys.time()-s
 
+r1 = read.csv("multi_mcmc_nt2.csv")
+r1 = cbind(r1,"i"=seq(1:193))
+res = rbind(r1,results)
+
 par(mfrow = c(2,2))
 hist(res[,1],col=rgb(1,0,0,0.5), main= 'b0', 
-     breaks = 15,xlim = c(-2.5,0),xlab = '')
-hist(res[,6],col=rgb(0,0,1,0.5), add = T, breaks = 50)
+     breaks = 15,ylim = c(0,50),xlab = '')
+hist(res[,5],col=rgb(0,0,1,0.5), add = T, breaks = 15)
+abline(v = omega)
 legend('topleft',c('MCMC','stochvol'),
        col = c(rgb(1,0,0,0.5),rgb(0,0,1,0.5)),lwd = c(5,5))
 hist(res[,2],col=rgb(1,0,0,0.5), main = 'b1', 
-     breaks = 20,xlim = c(0.75,1),xlab = '')
-hist(res[,7],col=rgb(0,0,1,0.5), add = T, breaks = 30)
+     breaks = 15,ylim = c(0,50),xlab = '')
+hist(res[,6],col=rgb(0,0,1,0.5), add = T, breaks = 15)
+abline(v = phi)
 legend('topleft',c('MCMC','stochvol'),
        col = c(rgb(1,0,0,0.5),rgb(0,0,1,0.5)),lwd = c(5,5))
 hist(res[,3],col=rgb(1,0,0,0.5), main = 'sig', 
-     breaks = 15,xlim = c(0.2,0.8),ylim = c(0,25),xlab = '')
-hist(res[,8],col=rgb(0,0,1,0.5), add = T, breaks = 20)
+     breaks = 25,ylim = c(0,50),xlab = '')
+hist(res[,7],col=rgb(0,0,1,0.5), add = T, breaks = 15)
+abline(b = 0.35)
 legend('topright',c('MCMC','stochvol'),
        col = c(rgb(1,0,0,0.5),rgb(0,0,1,0.5)),lwd = c(5,5))
 hist(res[,4],col=rgb(1,0,1,0.5), main = 'nu', 
      breaks = 30,ylim = c(0,50),xlab = '')
-hist(res[,5],col=rgb(0,1,1,0.5), add = T, breaks = 5)
+#hist(res[,5],col=rgb(0,1,1,0.5), add = T, breaks = 5)
+abline(v = t_nu)
 legend('topright',c('nu_eta','nu_epsilon'),
        col = c(rgb(1,0,1,0.5),rgb(0,1,1,0.5)),lwd = c(5,5))
 
-i = 1
-median(res[,i]);sd(res[,i]);i = i+1
+# i = 1
+# median(res[,i]);sd(res[,i]);i = i+1
 
 Sys.time()-s
