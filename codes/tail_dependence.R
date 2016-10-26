@@ -1,6 +1,10 @@
-set.seed(3)
-N = 8000
-burnin = 1500
+library(evd)
+library(fGarch)
+source("new_sv_funs.R")
+
+set.seed(1)
+N = 50000
+burnin = 5000
 phi = 0.95
 t_nu = 5
 omega = -0.5
@@ -20,4 +24,9 @@ x = x[-c(1:burnin)]
 sig = sig[-c(1:burnin)]
 
 smdat = cbind(x[-length(x)],x[-1])
-chiplot(smdat)
+par(mfrow = c(1,2))
+chiplot(smdat,nq = 200)
+par(mfrow = c(1,1))
+
+# calculate chi_bar
+chi.bar(x,q = 0.9995)
