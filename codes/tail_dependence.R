@@ -10,10 +10,10 @@ t_nu = 5
 epi_nu = 5
 omega = -0.5
 
-err1 = rnorm(N)
-#err1 = rstd(N,mean = 0,sd = 1,nu = epi_nu) # epsilon_t
-#err2 = rnorm(N)
-err2 = rstd(N,mean = 0,sd = 0.35,nu = t_nu) # eta_t
+#err1 = rnorm(N)
+err1 = rstd(N,mean = 0,sd = 1,nu = epi_nu) # epsilon_t
+err2 = rnorm(N,sd = 0.35)
+#err2 = rstd(N,mean = 0,sd = 0.35,nu = t_nu) # eta_t
 x = rep(0,N)
 sig = rep(0,N)
 sig[1] = 0.01
@@ -35,19 +35,19 @@ abline(h = 1,lty = 'dotdash')
 chi.bar(x,q = 0.999,n = 1)
 
 # for GARCH
-set.seed(2)
+set.seed(1)
 N = 50000
 burnin = 5000
-phi = 0.6
-beta = 0.3
+phi = 0.9
+beta = 0.05
 t_nu = 5
 epi_nu = 5
-omega = 0.02
+omega = 0.5
 
 err1 = rnorm(N)
 #err1 = rstd(N,mean = 0,sd = 1,nu = epi_nu) # epsilon_t
-#err2 = rnorm(N)
-err2 = rstd(N,mean = 0,sd = 0.35,nu = t_nu) # eta_t
+err2 = rnorm(N)
+#err2 = rstd(N,mean = 0,sd = 0.35,nu = t_nu) # eta_t
 gx = rep(0,N)
 gsig = rep(0,N)
 gsig[1] = 0.01

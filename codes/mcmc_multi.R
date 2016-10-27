@@ -58,7 +58,7 @@ omega = -0.5
 
 registerDoMC(8)
 s = Sys.time()
-results = foreach(i = 200:300,.errorhandling = 'remove',.combine = rbind)%dopar%{
+results = foreach(i = 1:150,.errorhandling = 'remove',.combine = rbind)%dopar%{
   set.seed(i)
   
   # generate simulated datasets
