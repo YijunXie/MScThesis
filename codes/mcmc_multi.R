@@ -165,29 +165,35 @@ Sys.time()-s
 
 r1 = read.csv("multi_mcmc_nt2.csv")
 r1 = cbind(r1,"i"=seq(1:193))
-res = rbind(r1,results)
+res = rbind(r1,r2)
 
 par(mfrow = c(2,2))
 hist(res[,1],col=rgb(1,0,0,0.5), main= 'b0', 
+     xlim = c(-1.3,-0.05),
      breaks = 15,ylim = c(0,50),xlab = '')
-hist(res[,5],col=rgb(0,0,1,0.5), add = T, breaks = 15)
+hist(res[,6],col=rgb(0,0,1,0.5), add = T, breaks = 15)
 abline(v = omega)
 legend('topleft',c('MCMC','stochvol'),
        col = c(rgb(1,0,0,0.5),rgb(0,0,1,0.5)),lwd = c(5,5))
 hist(res[,2],col=rgb(1,0,0,0.5), main = 'b1', 
+     xlim = c(0.87,0.99),
      breaks = 15,ylim = c(0,50),xlab = '')
-hist(res[,6],col=rgb(0,0,1,0.5), add = T, breaks = 15)
+hist(res[,7],col=rgb(0,0,1,0.5), add = T, breaks = 15)
 abline(v = phi)
 legend('topleft',c('MCMC','stochvol'),
        col = c(rgb(1,0,0,0.5),rgb(0,0,1,0.5)),lwd = c(5,5))
 hist(res[,3],col=rgb(1,0,0,0.5), main = 'sig', 
+     xlim = c(0.15,0.66),
      breaks = 25,ylim = c(0,50),xlab = '')
-hist(res[,7],col=rgb(0,0,1,0.5), add = T, breaks = 15)
+hist(res[,8],col=rgb(0,0,1,0.5), add = T, breaks = 15)
 abline(b = 0.35)
 legend('topright',c('MCMC','stochvol'),
        col = c(rgb(1,0,0,0.5),rgb(0,0,1,0.5)),lwd = c(5,5))
-hist(res[,4],col=rgb(1,0,1,0.5), main = 'nu', 
-     breaks = 30,ylim = c(0,50),xlab = '')
+hist(res[,5],col=rgb(1,0,0,0.5), main = 'nu',
+     xlim = c(3,10),
+     breaks = 25,ylim = c(0,50),xlab = '')
+hist(res[,9],col=rgb(0,0,1,0.5), add = T, breaks = 200)
+#abline(b = 0.35)
 #hist(res[,5],col=rgb(0,1,1,0.5), add = T, breaks = 5)
 abline(v = t_nu)
 legend('topright',c('nu_eta','nu_epsilon'),
