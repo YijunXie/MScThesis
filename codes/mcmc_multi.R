@@ -48,6 +48,8 @@ mh.std = function(o_ht,n_ht,x,b0,b1,sd,df,h1,h2,e_nu){
 
 ite = 5e3
 burn_in = 2000
+# ite = 10
+# burn_in = 2
 
 N = 4500
 
@@ -58,13 +60,13 @@ omega = -0.5
 
 registerDoMC(8)
 s = Sys.time()
-results = foreach(i = 1:150,.errorhandling = 'remove',.combine = rbind)%dopar%{
-  set.seed(i)
+results = foreach(q = 151:200,.errorhandling = 'remove',.combine = rbind)%dopar%{
+  set.seed(q)
   
   # generate simulated datasets
-  err1 = rnorm(N)# epsilon_t
-  err2 = rstd(N,mean = 0,sd = 0.35,nu = t_nu)
-  #err2 = rstd(N,mean = 0,sd = 0.35,nu = t_nu) # eta_t
+  #err1 = rnorm(N)# epsilon_t
+  err1 = rstd(N,mean = 0,sd = 1,nu = epi_nu)
+  err2 = rstd(N,mean = 0,sd = 0.35,nu = t_nu) # eta_t
   x = rep(0,N)
   sig = rep(0,N)
   sig[1] = 0.01
@@ -109,11 +111,11 @@ results = foreach(i = 1:150,.errorhandling = 'remove',.combine = rbind)%dopar%{
       o_ht = ths[j]
       n_ht = tb0 + tb1 * ths[j-1] + rstd(1,mean = 0,sd = tetasd,nu = tdf)
       # Normal-Std
-      t_ht = mh.ht(o_ht,n_ht,dx[j],
-                   tb0,tb1,tetasd,tdf,ths[j-1],ths[j+1])
+      #t_ht = mh.ht(o_ht,n_ht,dx[j],
+      #             tb0,tb1,tetasd,tdf,ths[j-1],ths[j+1])
       # Std-Std
-      # t_ht = mh.std(o_ht,n_ht,dx[j],tb0,tb1,tetasd,
-      #              tdf,ths[j-1],ths[j+1],epn)
+      t_ht = mh.std(o_ht,n_ht,dx[j],tb0,tb1,tetasd,
+                   tdf,ths[j-1],ths[j+1],epn)
       ths[j] = t_ht
     }
     ths[1] = mean(ths)
@@ -135,26 +137,29 @@ results = foreach(i = 1:150,.errorhandling = 'remove',.combine = rbind)%dopar%{
     tb0 = (1-afm@model$pars[2,1])*afm@model$pars[1,1]
     tetasd = afm@model$pars[7,1]
     tdf = afm@model$pars[17,1]
-    #tx = dx[251:1750]
+    tx = dx[251:1750]
+    #################################################
     # Std-Std
-    #z = tx / sqrt(exp(ths1)) # back-out first innovation
-    #epn = fitdist(distribution = "std",z)$pars[3]
-    #intmr = rbind(intmr,c(tb0,tb1,tetasd,tdf,epn))
+    z = tx / sqrt(exp(ths1)) # back-out first innovation
+    epn = fitdist(distribution = "std",z)$pars[3]
+    intmr = rbind(intmr,c(tb0,tb1,tetasd,tdf,epn))
+    ###################################################
     #if(l%%50 == 0){print(paste(l/50,"% finished"))}
-    intmr = rbind(intmr,c(tb0,tb1,tetasd,tdf))
+    #intmr = rbind(intmr,c(tb0,tb1,tetasd,tdf))
   }
   intmr = intmr[-c(1:burn_in),]
   
-  draws = svsample(dx, draws = 5000,burnin = burn_in)
+  draws = svsample(dx, draws = 3000,priornu = c(2,100),burnin = burn_in)
   
   b1 = draws$summary$para[2,1]
   b0 = draws$summary$para[1,1] * (1-b1)
   svg = draws$summary$para[3,1]
+  snu = draws$summary$para[4,1]
   c(median(intmr[,1]),median(intmr[,2]),median(intmr[,3]),
-    median(intmr[,4]),b0,b1,svg,i)
+    median(intmr[,4]),median(intmr[,5]),b0,b1,svg,snu,q)
 }
 
-write.csv(results,'multi_mcmc_nt3.csv')
+write.csv(results,'multi_mcmc_tt2.csv')
 
 Sys.time()-s
 
