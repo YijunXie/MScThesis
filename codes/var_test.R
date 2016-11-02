@@ -6,9 +6,10 @@ require('doMC')
 require('foreach')
 require("fGarch")
 require('rugarch')
-#require('fitdistrplus')
+require("Hmisc")
 require('fExtremes')
 require('stochvol')
+require("ismev")
 
 set.seed(1)
 ite = 5000
@@ -85,5 +86,98 @@ for(l in 1:ite){
 }
 intmr = intmr[-c(1:2000),]
 
+# estimated parameters for sv(nt) model
 theta_hat = c(median(intmr[,1]),median(intmr[,2]),
               median(intmr[,3]), median(intmr[,4]))
+
+# estimate parameters for sv(nn) model
+draws = svsample(x_sample, draws = 3000,priornu = c(2,100),burnin = burn_in)
+
+b1 = draws$summary$para[2,1]
+b0 = draws$summary$para[1,1] * (1-b1)
+svg = draws$summary$para[3,1]
+snu = draws$summary$para[4,1]
+theta_nn = c(b0,b1,svg,snu)
+
+# estimate parameters for garch model
+spec_cor = ugarchspec(mean.model=list(armaOrder=c(1,0),include.mean=FALSE), 
+                  distribution.model="std")
+fit = ugarchfit(spec, temp_dat)
+
+x_test = x[2501:7000]
+sig_test = sig[2501:7000]
+w = 1000 # window si
+p = 0.9
+alpha = 0.95
+# setting up comparison
+registerDoMC(8)
+res = foreach(i = 1:(length(x_test)-w),.errorhandling = 'remove',              .combine = rbind)%dopar%{
+  temp_dat = x_test[i:(i+w-1)]
+  spec = ugarchspec(mean.model=list(armaOrder=c(0,0),include.mean=FALSE), 
+                    distribution.model="norm") # AR(1)-GARCH(1,1) model
+  fit = ugarchfit(spec, temp_dat)
+  resid=residuals(fit) 
+  sigma_garch=sigma(fit)
+  z0=resid/sigma_garch
+  frcst = ugarchforecast(fit,n.ahead=1)
+  sigt1 = sigma(frcst) # expected sigma for next day
+  
+  # sv var
+  sigma_t=as.numeric(sigma_garch[w])
+  tmu = theta_hat[1] + theta_hat[2] * log(sigma_t^2)#log(testsig[i+w-1]^2)
+  msig = theta_hat[3]
+  tnu = theta_hat[4]
+  var_sv = varx2(tmu = tmu, sig = msig, tnu = tnu,
+            lev = 0.05, accuracy = 10e-15)
+  
+  # garch-evt var
+  z0 = as.numeric(z0)
+  u0 = sort(z0,decreasing=T)[p*length(z0)+1]
+  bo_gpd = gpd.fit(z0,threshold=u0,show=F)
+  bo_beta=bo_gpd$mle[1]; bo_xi=bo_gpd$mle[2] # MLE's of scale and shape parameters
+  bo_fq = u0 +(bo_beta/bo_xi) * (((1-alpha)/p)^(-bo_xi) -1) # upper quantile of GPD 
+  var_bo =mut1 + sigt1*bo_fq
+  
+  # garch-mb var
+  var_mb = mut1 + sigt1 * qnorm(alpha)
+  
+  # oracle var
+  o_mu = -1 + 0.9 * log(sig_test[i+w-1]^2)#log(testsig[i+w-1]^2)
+  var_ora = varx2(tmu = o_mu, sig = 0.35, tnu = 5,
+                 lev = 0.05, accuracy = 10e-15)
+  
+  # true value
+  true_x = x_test[i+w]
+  
+  
+  bo_backtest = 0
+  sv_backtest = 0
+  mb_backtest = 0
+  ora_backtest = 0
+  
+  if(var_bo <= true_x){
+    bo_backtest = 1 # if violate, indicate 1
+  } 
+  
+  if(var_mb <= true_x){
+    mb_backtest = 1 # if violate, indicate 1
+  }
+  
+  if(var_sv <= true_x){
+    sv_backtest = 1 # if violate, indicate 1
+  }
+  
+  if(var_ora <= true_x){
+    ora_backtest = 1 # if violate, indicate 1
+  }
+  
+  # scoring 
+  s_bo = pwls(var_bo,true_x,alpha)
+  s_sv = pwls(var_sv,true_x,alpha)
+  s_mb = pwls(var_mb,true_x,alpha)
+  s_ora = pwls(var_ora,true_x,alpha)
+  
+  return(c(true_x,var_sv, sv_backtest, s_sv, var_bo, bo_backtest, s_bo,
+           var_mb, mb_backtest, s_mb, var_ora, ora_backtest, s_ora))
+}
+
