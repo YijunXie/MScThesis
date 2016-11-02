@@ -11,43 +11,24 @@ require('fExtremes')
 require('stochvol')
 require("ismev")
 
-set.seed(1)
-ite = 5000
+dat <- read.csv("~/MScThesis/codes/sp.csv", row.names=1)
+dat = apply(dat,2,rev)
+OHLC = as.numeric(dat[,c(1,2,3,4)])
+OHLC = matrix(OHLC,ncol = 4)
+price = dat[,6]
 
-# simulate data
-N = 8000
-burn_in = 1000
-phi = 0.9
-t_nu = 5
-omega = -1
+ret = diff(log(price))
+x = ret
 
-err1 = rnorm(N)
-err2 = rstd(N,mean = 0,sd = 0.35,nu = t_nu) # eta_t
-x = rep(0,N)
-sig = rep(0,N)
-sig[1] = 0.01
-for(i in 2:N){
-  sig[i] = sqrt(exp(omega+phi * log(sig[i-1]^2) + err2[i]))
-  x[i] = sig[i]*err1[i]
-}
-
-x = x[-c(1:burn_in)]
-sig = sig[-c(1:burn_in)]
-price = rep(0,(N-burn_in+1))
-price[1] = 1
-for(j in 2:(N-burn_in+1)){
-  price[j] = price[j-1]*exp(x[j-1])
-}
-
-# use first 2500 days to estimate variables
 x_sample = x[1:2500]
 p_sample = price[1:2501]
 rv = TTR::volatility(p_sample,calc="close", n = 5) / sqrt(260)
 
 dx = x[251:2250]
-dsig = sig[251:2250]
 drv = rv[252:2251]
 
+ite = 5000
+burn_in = 2000
 #initial guess
 hs = log(drv^2) # sigma^2
 m1 = lm(hs[-1]~hs[-length(hs)])
@@ -68,7 +49,7 @@ for(l in 1:ite){
     n_ht = tb0 + tb1 * ths[j-1] + rstd(1,mean = 0,sd = tetasd,nu = tdf)
     # Normal-Std
     t_ht = mh.ht(o_ht,n_ht,dx[j],
-                tb0,tb1,tetasd,tdf,ths[j-1],ths[j+1])
+                 tb0,tb1,tetasd,tdf,ths[j-1],ths[j+1])
     ths[j] = t_ht
   }
   ths[1] = mean(ths)
@@ -90,22 +71,7 @@ intmr = intmr[-c(1:2000),]
 theta_hat = c(median(intmr[,1]),median(intmr[,2]),
               median(intmr[,3]), median(intmr[,4]))
 
-# estimate parameters for sv(nn) model
-draws = svsample(x_sample, draws = 3000,priornu = c(2,100),burnin = burn_in)
-
-b1 = draws$summary$para[2,1]
-b0 = draws$summary$para[1,1] * (1-b1)
-svg = draws$summary$para[3,1]
-snu = draws$summary$para[4,1]
-theta_nn = c(b0,b1,svg,snu)
-
-# estimate parameters for garch model
-spec_cor = ugarchspec(mean.model=list(armaOrder=c(1,0),include.mean=FALSE), 
-                  distribution.model="std")
-fit = ugarchfit(spec, temp_dat)
-
 x_test = x[2501:7000]
-sig_test = sig[2501:7000]
 w = 1000 # window si
 p = 0.9
 alpha = 0.95
@@ -128,7 +94,7 @@ res = foreach(i = 1:(length(x_test)-w),.errorhandling = 'remove',              .
   msig = theta_hat[3]
   tnu = theta_hat[4]
   var_sv = varx2(tmu = tmu, sig = msig, tnu = tnu,
-            lev = 0.05, accuracy = 10e-15)
+                 lev = 0.05, accuracy = 10e-15)
   
   # garch-evt var
   z0 = as.numeric(z0)
@@ -140,11 +106,7 @@ res = foreach(i = 1:(length(x_test)-w),.errorhandling = 'remove',              .
   
   # garch-mb var
   var_mb = mut1 + sigt1 * qnorm(alpha)
-  
-  # oracle var
-  o_mu = -1 + 0.9 * log(sig_test[i+w-1]^2)#log(testsig[i+w-1]^2)
-  var_ora = varx2(tmu = o_mu, sig = 0.35, tnu = 5,
-                 lev = 0.05, accuracy = 10e-15)
+
   
   # true value
   true_x = x_test[i+w]
@@ -153,7 +115,6 @@ res = foreach(i = 1:(length(x_test)-w),.errorhandling = 'remove',              .
   bo_backtest = 0
   sv_backtest = 0
   mb_backtest = 0
-  ora_backtest = 0
   
   if(var_bo <= true_x){
     bo_backtest = 1 # if violate, indicate 1
@@ -167,20 +128,11 @@ res = foreach(i = 1:(length(x_test)-w),.errorhandling = 'remove',              .
     sv_backtest = 1 # if violate, indicate 1
   }
   
-  if(var_ora <= true_x){
-    ora_backtest = 1 # if violate, indicate 1
-  }
-  
   # scoring 
   s_bo = pwls(var_bo,true_x,alpha)
   s_sv = pwls(var_sv,true_x,alpha)
   s_mb = pwls(var_mb,true_x,alpha)
-  s_ora = pwls(var_ora,true_x,alpha)
   
   return(c(true_x,var_sv, sv_backtest, s_sv, var_bo, bo_backtest, s_bo,
-           var_mb, mb_backtest, s_mb, var_ora, ora_backtest, s_ora))
+           var_mb, mb_backtest, s_mb))
 }
-
-lrtest(res[,3],0.05);lrtest(res[,6],0.05);lrtest(res[,9],0.05);lrtest(res[,12],0.05)
-
-mean(res[,4]);mean(res[,7]);mean(res[,10]);mean(res[,13])
