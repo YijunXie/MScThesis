@@ -7,10 +7,6 @@ to.stdnorm = function(dat){
   for(i in 1:length(dat)){
     ind[i] = which(tempx == dat[i])
   }
-#   fx = rep(0,length(dat))
-#   for(j in 1:length(dat)){
-#     fx[j] = cdfs$y[ind[j]] 
-#   }
   fx = cdfs$y[ind]
   fx[which.min(fx)]=fx[which.min(fx[-which.min(fx)])]
   res = qnorm(fx)
