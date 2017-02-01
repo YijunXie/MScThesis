@@ -110,3 +110,17 @@ for(l in 1:ite){
 }
 
 Sys.time()-s
+
+plot(intmr[,1],ylim = c(-20,0),type = 'l',xlab = "",ylab = "")
+lines(intmr_g[,1],type = 'l',col = 'red')
+abline(h = -0.5)
+title(main=" ",ylab = "beta_0",xlab = "iterations")
+legend("bottomleft",c("With M-H step","Without M-H step"), lty = c(1,1),
+       lwd = c(2,2),col = c("black","red"))
+
+plot(intmr[,2],ylim = c(-1,1),type = 'l',xlab = "",ylab = "")
+lines(intmr_g[,2],type = 'l',col = 'red')
+abline(h = 0.95)
+title(main=" ",ylab = "beta_1",xlab = "iterations")
+legend("bottomleft",c("With M-H step","Without M-H step"), lty = c(1,1),
+       lwd = c(2,2),col = c("black","red"))
