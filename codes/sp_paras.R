@@ -1,5 +1,3 @@
-
-
 library("TTR")
 library("MASS")
 source("new_sv_funs.R")
@@ -13,7 +11,7 @@ require('stochvol')
 require("ismev")
 setwd("/nfs/37zfs1-yijun.xie/yijun.xie/MScThesis/codes")
 set.seed(1)
-ite = 20000
+ite = 5000
 s = Sys.time()
 sp <- read.csv("sp.csv", row.names=1)
 dat = apply(sp,2,rev)
