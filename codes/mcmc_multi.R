@@ -60,7 +60,7 @@ omega = -0.5
 
 registerDoMC(8)
 s = Sys.time()
-results = foreach(q = 151:200,.errorhandling = 'remove',.combine = rbind)%dopar%{
+results = foreach(q = 1:200,.errorhandling = 'remove',.combine = rbind)%dopar%{
   set.seed(q)
   
   # generate simulated datasets
@@ -149,17 +149,17 @@ results = foreach(q = 151:200,.errorhandling = 'remove',.combine = rbind)%dopar%
   }
   intmr = intmr[-c(1:burn_in),]
   
-  draws = svsample(dx, draws = 3000,priornu = c(2,100),burnin = burn_in)
-  
-  b1 = draws$summary$para[2,1]
-  b0 = draws$summary$para[1,1] * (1-b1)
-  svg = draws$summary$para[3,1]
-  snu = draws$summary$para[4,1]
+  # draws = svsample(dx, draws = 3000,priornu = c(2,100),burnin = burn_in)
+  # 
+  # b1 = draws$summary$para[2,1]
+  # b0 = draws$summary$para[1,1] * (1-b1)
+  # svg = draws$summary$para[3,1]
+  # snu = draws$summary$para[4,1]
   c(median(intmr[,1]),median(intmr[,2]),median(intmr[,3]),
-    median(intmr[,4]),median(intmr[,5]),b0,b1,svg,snu,q)
+    median(intmr[,4]),median(intmr[,5]))#,b0,b1,svg,snu,q)
 }
 
-write.csv(results,'multi_mcmc_tt2.csv')
+write.csv(results,'nn_tt1.csv')
 
 Sys.time()-s
 
