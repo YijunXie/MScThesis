@@ -16,9 +16,9 @@ dat = apply(sp,2,rev)
 p = dat[,6]
 all_x = diff(log(p))
 
-theta_hat1 = c(-0.09979134,0.9888713,0.07071118)
+#theta_hat1 = c(-0.09979134,0.9888713,0.07071118)
 
-theta_hat2 = c(-0.1146881,0.987974,0.0845055,2.840286)
+theta_hat = c(-0.1146881,0.987974,0.0845055,2.840286)
 
 x_test = all_x[2022:6000]
 w = 1000 # window si
@@ -28,11 +28,13 @@ alpha1 = 0.95
 alpha2 = 0.99
 # setting up comparison 
 registerDoMC(8)
-res = foreach(i = 1:(length(x_test)-w),.errorhandling = 'remove',
+res = foreach(i = 1:(length(x_test)-w),.errorhandling = 'remove',      
               .combine = rbind)%dopar%{
+  
   temp_dat = x_test[i:(i+w-1)]
+  #temp_dat = x_test[i:(i+w-1)]
   spec = ugarchspec(mean.model=list(armaOrder=c(0,0),include.mean=FALSE), 
-                    distribution.model="std") # AR(1)-GARCH(1,1) model
+                    distribution.model="norm") # GARCH(1,1) model
   fit = ugarchfit(spec, temp_dat)
   resid=residuals(fit) 
   sigma_garch=sigma(fit)
@@ -40,49 +42,90 @@ res = foreach(i = 1:(length(x_test)-w),.errorhandling = 'remove',
   frcst = ugarchforecast(fit,n.ahead=1)
   sigt1 = sigma(frcst) # expected sigma for next day
   
-  # sv(nn) var 0.95
+  # arsv(1) var 0.95
   sigma_t=as.numeric(sigma_garch[w])
-  tmu1 = theta_hat1[1] + theta_hat1[2] * log(sigma_t^2)#log(testsig[i+w-1]^2)
-  msig1 = theta_hat1[3]
-  var_sv_a1 = varx_nn(tmu = tmu1, sig = msig1, 
-                 lev = 1-alpha1, accuracy = 10e-15)
+  tmu1 = theta_hat[1] + theta_hat[2] * log(sigma_t^2)#log(testsig[i+w-1]^2)
+  msig1 = theta_hat[3]
+  tnu = theta_hat[4]
+  var_sv_a = varx2(tmu = tmu1, sig = msig1, tnu = tnu,
+                   lev = 1-alpha1, accuracy = 10e-15)
   
-  # sv(nn) var 0.99
-  var_sv_a2 = varx_nn(tmu = tmu1, sig = msig1, 
-                      lev = 1-alpha2, accuracy = 10e-15)
+  # arsv(1) var 0.99
+  var_sv_b = varx2(tmu = tmu1, sig = msig1, tnu = tnu,
+                   lev = 1-alpha2, accuracy = 10e-15)
   
-  # sv(nt) var 0.95
-  tmu2 = theta_hat2[1] + theta_hat2[2] * log(sigma_t^2)#log(testsig[i+w-1]^2)
-  msig2 = theta_hat2[3]
-  tnu = theta_hat2[4]
-  var_sv_b1 = varx2(tmu = tmu2, sig = msig2, tnu = tnu,
-                 lev = 1-alpha1, accuracy = 10e-15)
-  
-  # sv(nt) var 0.99
-  var_sv_b2 = varx2(tmu = tmu2, sig = msig2, tnu = tnu,
-                    lev = 1-alpha2, accuracy = 10e-15)
   
   #garch-evt var 0.95
+  nob = length(temp_dat)*(1-alpha1)
   z0 = as.numeric(z0)
-  u0 = sort(z0,decreasing=T)[p1*length(z0)+1]
-  bo_gpd = gpd.fit(z0,threshold=u0,show=F)
+  #u0 = sort(z0,decreasing=F)[p1*length(z0)+1]
+  u0 = quantile(z0,p1)
+  bo_gpd = gpd.fit(z0,threshold=u0,show=F,method = "BFGS")
   bo_beta=bo_gpd$mle[1]; bo_xi=bo_gpd$mle[2] # MLE's of scale and shape parameters
-  bo_fq = u0 +(bo_beta/bo_xi) * (((1-alpha1)/p1)^(-bo_xi) -1) # upper quantile of GPD
-  var_bo1 =sigt1*bo_fq
+  bo_fq = u0 +(bo_beta/bo_xi) * ((nob*(1-p1))^(-bo_xi) -1) # upper quantile of GPD
+  #var_bo1 =sigt1*bo_fq
+  var_bo1 = quantile(sample(z0,1e5,replace = T),alpha1)*sigt1
   
   #garch-evt var 0.99
-  u0 = sort(z0,decreasing=T)[p2*length(z0)+1]
-  bo_gpd = gpd.fit(z0,threshold=u0,show=F)
+  #u0 = sort(z0,decreasing=F)[p2*length(z0)+1]
+  u0 = quantile(z0,p2)
+  nob = length(temp_dat)*(1-alpha2)
+  bo_gpd = gpd.fit(z0,threshold=u0,show=F,method = "BFGS")
   bo_beta=bo_gpd$mle[1]; bo_xi=bo_gpd$mle[2] # MLE's of scale and shape parameters
-  bo_fq = u0 +(bo_beta/bo_xi) * (((1-alpha2)/p2)^(-bo_xi) -1) # upper quantile of GPD
-  var_bo2 =sigt1*bo_fq
-  
-  
+  bo_fq = u0 +(bo_beta/bo_xi) * ((nob*(1-p2))^(-bo_xi) -1) # upper quantile of GPD
+  #var_bo2 =sigt1*bo_fq
+  var_bo2 = quantile(sample(z0,1e5,replace = T),alpha2)*sigt1
   
   # true value
   true_x = x_test[i+w]
   
-  c(true_x,var_sv_a1, var_sv_b1,var_bo1,var_sv_a2,var_sv_b2,var_bo2,i)
+  arsv_s_1 = pwls(var_sv_a,true_x,alpha1)
+  arsv_s_2 = pwls(var_sv_b,true_x,alpha2)
+  
+  garch_s_1 = pwls(var_bo1,true_x,alpha1)
+  garch_s_2 = pwls(var_bo2,true_x,alpha2)
+  
+  c(true_x,var_sv_a, arsv_s_1, var_sv_b,arsv_s_2, var_bo1,garch_s_1,
+    var_bo2,garch_s_2,i)
 }
-
+Sys.time() -s
 write.csv(res,"sp_var.csv")
+
+res <- read.csv("~/MScThesis/codes/sp_var.csv")
+res = (res[,-1])
+ind = res[,10]+1000
+plot(x_test[ind],type = 'l', 
+     ylim = c(-0.07,0.09),
+     ylab = expression('X'[t]))
+lines(res[,6],type = 'l',col = 'red')
+lines(res[,2],type = 'l',col = 'blue')
+legend("topright", c("VaR under GARCH","VaR under ARSV"), lty = c(1,1),
+       col = c("red","blue"))
+
+plot(x_test[ind],type = 'l', 
+     ylim = c(-0.07,0.1),
+     ylab = expression('X'[t]))
+lines(res[,8],type = 'l',col = 'red')
+lines(res[,4],type = 'l',col = 'blue')
+legend("topright", c("VaR under GARCH","VaR under ARSV"), lty = c(1,1),
+       col = c("red","blue"))
+
+
+length(which(res[,2] < res[,1])) / nrow(res)
+dat1 = (res[,2] < res[,1])
+lrtest(dat1,0.05)
+length(which(res[,4] < res[,1])) / nrow(res)
+dat2 = (res[,4] < res[,1])
+lrtest(dat2,0.01)
+
+length(which(res[,6] < res[,1])) / nrow(res)
+dat3 = (res[,6] < res[,1])
+lrtest(dat3,0.05)
+length(which(res[,8] < res[,1])) / nrow(res)
+dat4 = (res[,8] < res[,1])
+lrtest(dat4,0.01)
+
+efp.test(res[,3],res[,7])
+efp.test(res[,5],res[,9])
+
+
